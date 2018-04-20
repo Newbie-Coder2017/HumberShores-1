@@ -1,3 +1,24 @@
+-- SELECT * FROM sys.foreign_keys;
+-- SELECT * FROM sys.check_constraints;
+-- -- May be helpful commands if needing to re-create the DB
+-- DROP TABLE 
+-- departments,
+-- physicians,
+-- employees,
+-- specialties, 
+-- provinces,
+-- site_users,
+-- announcements,
+-- appointments,
+-- VOLUNTEER,
+-- OPPORTUNITY,
+-- PASS,
+-- PASS_TYPE,
+-- VEHICLES,
+-- HOSPITAL_VACANCY,
+-- HOSPITAL_FEEDBACK,
+-- site_roles; --Creating and Droping Order may also be important regarding foreign keys
+
 CREATE TABLE departments (
     dept_id INT IDENTITY(1,1) NOT NULL UNIQUE,
     dept_name VARCHAR(20) NOT NULL UNIQUE,
@@ -6,9 +27,9 @@ CREATE TABLE departments (
     dept_desc VARCHAR(MAX) NOT NULL,
     CONSTRAINT pk_departments PRIMARY KEY (dept_id),
     CONSTRAINT dept_id_check CHECK(dept_id NOT LIKE '%[^0-9]%'),
-    CONSTRAINT dept_name_check CHECK(dept_name NOT LIKE '%[^A-Za-z ]%'),
+    CONSTRAINT dept_name_check CHECK(dept_name NOT LIKE '%[^-A-Za-z &]%'), -- changed check constraint on dept_name because i'm using other characters other than a-z
     CONSTRAINT dept_phone_check CHECK(dept_phone_ext NOT LIKE '%[^0-9]%')
-);
+); -- Added insert Statement at the end of file
 CREATE TABLE site_roles (
     role_code CHAR(3) NOT NULL UNIQUE,
     role_name VARCHAR(15) NOT NULL UNIQUE,
@@ -94,25 +115,26 @@ CREATE TABLE appointments (
 );
 CREATE TABLE physicians (
     doctor_id INT IDENTITY(1,1) NOT NULL UNIQUE,
-    emp_id INT NOT NULL UNIQUE,
+    emp_id INT NOT NULL UNIQUE,    
+    user_id INT,
     department_id INT NOT NULL,
     special1 INT,
     special2 INT,
     phone VARCHAR(30),
     email VARCHAR(50),
     website VARCHAR(100),
-    street_address1 VARCHAR(100) NOT NULL,
+    street_address1 VARCHAR(100), -- I've made the private practice office optional so this is no longer not null
     street_address2 VARCHAR(100),
     building_name VARCHAR(100),
     city VARCHAR(50),
-    province CHAR(2),
-    country VARCHAR(50),
-    postal_code VARCHAR(7)
+    province INT,
+    -- Removed Country for the Provate practice as I will only have canadian provinces in my form
+    postal_code VARCHAR(7),
     CONSTRAINT pk_physicians PRIMARY KEY (doctor_id),
     CONSTRAINT doc_address1_check CHECK(street_address1 NOT LIKE '%[^a-zA-Z0-9 ]%'),
     CONSTRAINT doc_address2_check CHECK(street_address2 NOT LIKE '%[^a-zA-Z0-9 ]%'),
     CONSTRAINT doc_city_check CHECK(city NOT LIKE '%[^a-zA-Z ]%'),
-    CONSTRAINT doc_province_check CHECK(province IN ('AB', 'BC', 'MB', 'NB', 'NF', 'NS', 'NU', 'NT', 'ON', 'PEI', 'SK', 'QC', 'YK')),
+  -- Removed CHAR check on provinces because I'm using a provinces table with int primary key, I've added a FK constraint at the bottom
     CONSTRAINT doc_email_check CHECK(email LIKE '[a-zA-Z0-9]%@[a-zA-Z0-9]%.[a-z][a-z]%'),
     CONSTRAINT doc_phone_check CHECK(phone NOT LIKE '%[^0-9]%'),
     CONSTRAINT doc_postal_code CHECK(postal_code LIKE '[A-Z][0-9][A-Z] [0-9][A-Z][0-9]' OR postal_code LIKE '[A-Z][0-9][A-Z][0-9][A-Z][0-9]')
@@ -123,6 +145,14 @@ CREATE TABLE specialties (
     CONSTRAINT pk_specialties PRIMARY KEY (special_id),
     CONSTRAINT spec_name_check CHECK(specialty_name NOT LIKE '%[^A-Za-z ]%')
 );
+--Added a standalone Provinces table for the Physician private practice
+CREATE TABLE provinces
+(
+    id INT CONSTRAINT provinces_id_pk PRIMARY KEY IDENTITY(1,1),
+    name VARCHAR(30) CONSTRAINT provinces_name_uq UNIQUE
+        CONSTRAINT provinces_name_nn NOT NULL
+);
+-- Insert Statement at the end of file
 CREATE TABLE VOLUNTEER (
     VOLUNTEER_ID INT  NOT NULL  PRIMARY KEY IDENTITY(1,1),
     FIRST_NAME VARCHAR(50) NOT NULL CHECK(FIRST_NAME NOT LIKE'%[^A-Z]%'),
@@ -221,6 +251,8 @@ ALTER TABLE physicians WITH CHECK ADD CONSTRAINT fk_physician_special1_id FOREIG
 ALTER TABLE physicians WITH CHECK ADD CONSTRAINT fk_physician_special2_id FOREIGN KEY (special2) REFERENCES specialties (special_id);
 ALTER TABLE physicians WITH CHECK ADD CONSTRAINT fk_physician_dept_id FOREIGN KEY (department_id) REFERENCES departments (dept_id);
 ALTER TABLE physicians WITH CHECK ADD CONSTRAINT fk_physician_emp_id FOREIGN KEY (emp_id) REFERENCES employees (emp_id);
+ALTER TABLE physicians WITH CHECK ADD CONSTRAINT fk_physician_user_id FOREIGN KEY (user_id) REFERENCES site_users(user_id) -- Using added user Foreign Key to directly access the user names
+ALTER TABLE physicians WITH CHECK ADD CONSTRAINT fk_physician_provincek FOREIGN KEY (province) REFERENCES provinces(id), -- Using int values with a provinces table
 
 ALTER TABLE volunteer WITH CHECK ADD CONSTRAINT fk_volunteer_opp FOREIGN KEY (opportunity_id) REFERENCES opportunity (opportunity_id);
 ALTER TABLE opportunity WITH CHECK ADD CONSTRAINT fk_opportunity_dept FOREIGN KEY (dept_id) REFERENCES departments (dept_id);
@@ -237,5 +269,51 @@ ALTER TABLE appointments WITH CHECK ADD CONSTRAINT fk_appointments_patient_id FO
 ALTER TABLE appointments WITH CHECK ADD CONSTRAINT fk_appointments_emp_id FOREIGN KEY (emp_id) REFERENCES employees (emp_id);
 
 
+-- Paul's INSERT Values
+INSERT INTO specialties (specialty_name) VALUES
+    ('Anaesthesia'),
+    ('Breast Cancer'),
+    ('Cardiology'),
+    ('Dentistry'),
+    ('Epidemiology'),
+    ('Family & Community Medicine'),
+    ('Hematology'),
+    ('Urology');
 
+INSERT INTO provinces (name) VALUES
+    ('Northwest Territories' ),
+    ('Yukon' ),
+    ('Nunavut' ),
+    ('Ontario' ),
+    ('Quebec' ),
+    ('Nova Scotia' ),
+    ('New Brunswick' ),
+    ('Manitoba' ),
+    ('British Columbia' ),
+    ('Prince Edward Island' ),
+    ('Saskatchewan' ),
+    ('Alberta' ),
+    ('Newfoundland and Labrador' );
 
+--the following insert statment may throw errors depending on # of Employees.
+INSERT INTO departments (dept_name, dept_head, dept_desc, dept_phone_ext) VALUES
+    ('Emergency', 1, 'description of Emergency Medicine department services', '911'),
+    ('Family Medicine', 11, 'description of Family Medicine department services', '123'),
+    ('Medical Imaging', 1, 'description of Medical Imaging department services', '234'),
+    ('Radiology', 9, 'description of Radiology department services', '789'),
+    ('Oncology', 13, 'description of Oncology: conducting Cancer research and treatment department services', '890'),
+    ('Medicine', 1, 'description of Medicine department services', '345'),
+    ('Short Term Care', 16, 'description of Short Term Care department services', '222'),
+    ('Microbiology', 1, 'description of Microbiology department services', '456'),
+    ('Long Term Care', 14, 'description of Long Term Care department services', '098'),
+    ('Obstetrics & Gynaecology', 1, 'description of Obstetrics & Gynaecology department services', '654'),
+    ('Ophthamlmology', 12, 'description of Ophthamlmology department services', '543'),
+    ('Otolaryngology - Head and Neck Surgery', 1, 'description of Otolaryngology department services', '432'),
+    ('Paediatrics', 1, 'description of Paediatrics department services', '321'),
+    ('Pathology and Laboratory Medicine', 1, 'description of Pathology  department servicesand Laboratory Medicine', '567'),
+    ('Psychiatry', 1, 'description of Psychiatry department services', '678'),
+    ('Surgery', 1, 'description of Surgery department services', '876'),
+    ('Registration', 15, 'description of Registration department services', '111'),
+    ('Shipping & Recieving', 10, 'description of Shipping & Recieving department services', '765'),
+    ('Information Technology', 1, 'description of Information Technology department services', '333')
+;
